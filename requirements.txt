@@ -1,0 +1,22 @@
+# Core PDF parsing
+pdfplumber==0.11.4
+
+# Environment variable management
+python-dotenv==1.0.1
+
+# Data validation and settings
+pydantic==2.7.1
+
+# PII anonymization (Microsoft Presidio)
+presidio-analyzer==2.2.362
+presidio-anonymizer==2.2.362
+# spaCy NLP back-end for Presidio PERSON detection
+# After installing, run: python -m spacy download pl_core_news_md
+spacy>=3.7,<4.0
+
+# OpenAI SDK (Structured Outputs via client.beta.chat.completions.parse)
+openai==2.38.0
+
+# Testing framework
+pytest==8.2.0
+pytest-cov==5.0.0

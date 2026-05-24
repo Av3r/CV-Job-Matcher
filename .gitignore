@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# -- SkillAlign-AI: local data files --
+data/*.pdf
+data/*.docx
+data/*.txt
+!data/.gitkeep
+
