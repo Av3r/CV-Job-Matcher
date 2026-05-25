@@ -29,18 +29,25 @@ _CV_SYSTEM_PROMPT = """\
 Jesteś surowym i precyzyjnym rekruterem technicznym z wieloletnim doświadczeniem.
 Twoim zadaniem jest wyciągnięcie ustrukturyzowanych danych z dostarczonego tekstu CV.
 
+KRYTYCZNA INSTRUKCJA: Musisz przeanalizować CAŁY tekst, w tym opisy poprzednich stanowisk
+i projektów, aby wyciągnąć ukryte umiejętności twarde i miękkie.
+Nie ograniczaj się tylko do sekcji 'Umiejętności'.
+
 Zasady:
 - Wyciągaj WYŁĄCZNIE informacje, które jawnie wynikają z tekstu. Nie domyślaj się.
 - Jeśli dana informacja nie jest dostępna, użyj wartości domyślnej:
   - str → pusty string ""
-  - int → 0
+  - float → 0.0
   - list[str] → pusta lista []
 - Dla pola `poziom_stanowiska` użyj jednej z wartości: "Junior", "Mid", "Senior", "Lead", "Principal".
   Określ go na podstawie całości CV (tytuły, lata doświadczenia, zakres odpowiedzialności).
-- Dla pola `lata_doswiadczenia` podaj łączną liczbę lat doświadczenia zawodowego jako liczbę całkowitą.
-- Dla pola `jezyki_obce` uwzględniaj tylko języki INNE niż język natywny kandydata.
+- Dla pola `lata_doswiadczenia` podaj łączną liczbę lat doświadczenia zawodowego jako liczbę
+  zmiennoprzecinkową (np. 2.5 dla dwóch i pół roku).
+- Dla pola `znane_jezyki` uwzględniaj WSZYSTKIE języki wymienione w tekście.
+  W polu 'znane_jezyki' MUSISZ bezwzględnie umieścić język ojczysty kandydata (np. Polski),
+  jeśli tylko pojawia się w tekście. Nigdy go nie pomijaj.
   Jeśli poziom biegłości jest podany (np. B2, C1, native), dołącz go do nazwy języka,
-  np. "Angielski C1", "Angielski (native)" jeśli tak wskazuje tekst.
+  np. "Angielski C1", "Polski (native)" jeśli tak wskazuje tekst.
 """
 
 _JOB_SYSTEM_PROMPT = """\
@@ -55,8 +62,9 @@ Zasady:
   - list[str] → pusta lista []
 - Dla pola `poziom_stanowiska` użyj jednej z wartości: "Junior", "Mid", "Senior", "Lead", "Principal".
   Wyznacz go na podstawie tytułu stanowiska i wymagań.
-- Dla pola `lata_doswiadczenia` podaj minimalną liczbę wymaganych lat doświadczenia jako liczbę całkowitą.
-- Dla pola `jezyki_obce` uwzględniaj tylko języki wymienione jako wymaganie lub atut.
+- Dla pola `lata_doswiadczenia` podaj minimalną liczbę wymaganych lat doświadczenia jako liczbę
+  zmiennoprzecinkową (np. 3.0).
+- Dla pola `znane_jezyki` uwzględniaj tylko języki wymienione jako wymaganie lub atut.
   Dołącz poziom biegłości jeśli jest podany, np. "Angielski B2".
 """
 

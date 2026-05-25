@@ -3,20 +3,12 @@ src/parsers/pdf_parser.py
 =========================
 Robust PDF text extractor with multi-column layout support.
 
-Strategy for multi-column detection
--------------------------------------
-Instead of relying on pdfplumber's default "naive" left-to-right text
-concatenation, we extract individual *words* together with their bounding-box
-coordinates (x0, top, x1, bottom).  We then:
-
-1. Cluster words into "visual rows" by grouping words whose vertical midpoints
-   are within a configurable tolerance of each other.
-2. Within each row we sort words by their x0 coordinate (left edge).
-3. We join sorted words with spaces, then join rows with newlines.
-
-This approach produces a reading order that closely mirrors how a human would
-read a two- (or three-) column résumé, without needing prior knowledge of how
-many columns exist on a given page.
+Strategy
+--------
+Uses ``pdfplumber``'s built-in ``page.extract_text(layout=True)`` which
+renders the page into a character grid, preserving the visual spacing between
+columns.  This is simpler and more reliable than manual word-clustering for
+the vast majority of CV layouts.
 """
 
 from __future__ import annotations
@@ -35,12 +27,8 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-#: Vertical tolerance (in PDF points, 1 pt ≈ 0.353 mm) used to decide
-#: whether two words belong to the same visual row.
+#: Passed to ``pdfplumber`` for character-grid snapping during layout extraction.
 DEFAULT_ROW_TOLERANCE: Final[float] = 3.0
-
-#: Horizontal gap (in PDF points) between two words that triggers insertion
-#: of an extra space in the output, helping to separate column content.
 DEFAULT_WORD_GAP_THRESHOLD: Final[float] = 10.0
 
 
@@ -76,18 +64,16 @@ class CVParser:
     Extracts plain text from PDF-based CVs using *pdfplumber*, with built-in
     support for single- and multi-column layouts.
 
+    ``page.extract_text(layout=True)`` is used for each page; it maps every
+    character to a grid position so that column whitespace is preserved in the
+    output text without any custom clustering logic.
+
     Parameters
     ----------
     row_tolerance:
-        Maximum vertical distance (in PDF points) between the midpoints of two
-        words for them to be considered part of the same text row.
-        Increase this value for PDFs with large leading; decrease for dense
-        layouts.  Default: ``3.0`` pt.
+        Passed through to pdfplumber's y_tolerance parameter.  Default: ``3.0``.
     word_gap_threshold:
-        Horizontal distance (in PDF points) between the right edge of one word
-        and the left edge of the next word in the same row, above which an
-        extra space character is inserted in the output.  This helps to visually
-        separate content from adjacent columns.  Default: ``10.0`` pt.
+        Retained for API compatibility but unused by the layout extractor.
 
     Examples
     --------
@@ -220,20 +206,9 @@ class CVParser:
         """
         Extract and return reading-order text from a single PDF page.
 
-        The algorithm works as follows:
-
-        1. Extract all words with their bounding boxes via
-           ``page.extract_words()``.
-        2. Group words into visual rows using :meth:`_cluster_into_rows`.
-        3. Within each row, sort words left-to-right by x0 coordinate.
-        4. Join words in a row with a single space (inserting an extra space
-           when the gap between adjacent words exceeds
-           :attr:`word_gap_threshold`).
-        5. Join rows with newline characters.
-
-        If ``extract_words`` returns nothing, fall back to
-        ``page.extract_text()`` so that simple single-column PDFs always
-        produce output.
+        Delegates entirely to ``pdfplumber``'s ``extract_text(layout=True)``
+        which builds a character grid for the page, so visual column spacing
+        is preserved automatically without any custom clustering.
 
         Parameters
         ----------
@@ -246,84 +221,8 @@ class CVParser:
             Extracted text for this page, or an empty string if no text could
             be found.
         """
-        words = page.extract_words(
-            x_tolerance=3,
-            y_tolerance=3,
-            keep_blank_chars=False,
-            use_text_flow=False,  # we do our own ordering
-            extra_attrs=["fontname", "size"],
-        )
-
-        if not words:
-            # Fallback: try the simple extractor (works fine for single-column)
-            fallback = page.extract_text(x_tolerance=3, y_tolerance=3)
-            return (fallback or "").strip()
-
-        rows = self._cluster_into_rows(words)
-        lines: list[str] = []
-
-        for row in rows:
-            # Sort left → right within the row
-            row_sorted = sorted(row, key=lambda w: w["x0"])
-            line_parts: list[str] = []
-
-            for idx, word in enumerate(row_sorted):
-                if idx > 0:
-                    gap = word["x0"] - row_sorted[idx - 1]["x1"]
-                    if gap > self.word_gap_threshold:
-                        # Column separator — add extra whitespace for clarity
-                        line_parts.append("  ")
-                line_parts.append(word["text"])
-
-            lines.append(" ".join(line_parts))
-
-        return "\n".join(lines).strip()
-
-    def _cluster_into_rows(
-        self, words: list[dict]
-    ) -> list[list[dict]]:
-        """
-        Group extracted word dicts into visual rows based on vertical position.
-
-        Two words are placed in the same row when the absolute difference
-        between their vertical midpoints is ≤ :attr:`row_tolerance`.
-
-        The returned list is ordered top-to-bottom (ascending ``top`` value of
-        the first word in each row).
-
-        Parameters
-        ----------
-        words:
-            List of word dicts as returned by
-            ``pdfplumber.Page.extract_words()``.  Each dict must contain at
-            least ``"top"`` and ``"bottom"`` keys.
-
-        Returns
-        -------
-        list[list[dict]]
-            A list of rows, where each row is itself a list of word dicts.
-        """
-        if not words:
-            return []
-
-        # Sort words top-to-bottom first so we iterate in page order
-        sorted_words = sorted(words, key=lambda w: (w["top"] + w["bottom"]) / 2)
-
-        rows: list[list[dict]] = []
-        current_row: list[dict] = [sorted_words[0]]
-        current_mid = (sorted_words[0]["top"] + sorted_words[0]["bottom"]) / 2
-
-        for word in sorted_words[1:]:
-            word_mid = (word["top"] + word["bottom"]) / 2
-            if abs(word_mid - current_mid) <= self.row_tolerance:
-                current_row.append(word)
-            else:
-                rows.append(current_row)
-                current_row = [word]
-                current_mid = word_mid
-
-        rows.append(current_row)
-        return rows
+        text = page.extract_text(layout=True, y_tolerance=self.row_tolerance)
+        return (text or "").strip()
 
     @staticmethod
     def _join_pages(pages_text: list[str]) -> str:

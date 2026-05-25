@@ -19,7 +19,7 @@ class CandidateData(BaseModel):
     poziom_stanowiska: str
     """Seniority level inferred from the CV, e.g. 'Junior', 'Mid', 'Senior'."""
 
-    lata_doswiadczenia: int
+    lata_doswiadczenia: float
     """Total years of professional experience."""
 
     umiejetnosci_twarde: list[str]
@@ -28,7 +28,7 @@ class CandidateData(BaseModel):
     umiejetnosci_miekkie: list[str]
     """Soft skills listed or inferred from the CV."""
 
-    jezyki_obce: list[str]
+    znane_jezyki: list[str]
     """Foreign languages with proficiency level if mentioned, e.g. 'English B2'."""
 
 
@@ -38,7 +38,7 @@ class JobOfferData(BaseModel):
     poziom_stanowiska: str
     """Required seniority level, e.g. 'Junior', 'Mid', 'Senior'."""
 
-    lata_doswiadczenia: int
+    lata_doswiadczenia: float
     """Minimum years of experience required by the offer."""
 
     umiejetnosci_twarde: list[str]
@@ -47,5 +47,21 @@ class JobOfferData(BaseModel):
     umiejetnosci_miekkie: list[str]
     """Required soft skills."""
 
-    jezyki_obce: list[str]
+    znane_jezyki: list[str]
     """Required foreign languages with expected proficiency if stated."""
+
+
+class MatchReport(BaseModel):
+    """Structured match report comparing a candidate against a job offer."""
+
+    procent_dopasowania: int
+    """Overall match percentage (0–100)."""
+
+    spelnione_wymagania: list[str]
+    """Requirements from the job offer that the candidate satisfies."""
+
+    brakujace_wymagania: list[str]
+    """Requirements from the job offer that the candidate does not meet."""
+
+    rekomendacje_zmian_w_cv: list[str]
+    """Concrete tips on what to add or change in the CV to better fit this offer."""
