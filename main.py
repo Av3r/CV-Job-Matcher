@@ -63,7 +63,7 @@ def test_pelnego_potoku(sciezka_pdf: str):
 
 if __name__ == "__main__":
     # Domyślna ścieżka do testów
-    plik_do_testu = "data/demo_cv.pdf" 
+    plik_do_testu = "data/test_krystyna_hardcore.pdf" 
     
     # Jeśli podasz argument w konsoli, użyje go
     if len(sys.argv) > 1:

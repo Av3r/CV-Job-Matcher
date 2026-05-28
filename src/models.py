@@ -65,3 +65,20 @@ class MatchReport(BaseModel):
 
     rekomendacje_zmian_w_cv: list[str]
     """Concrete tips on what to add or change in the CV to better fit this offer."""
+
+
+# --- Upskilling models ---
+class ResourceItem(BaseModel):
+    """Single educational resource for upskilling."""
+    tytul: str
+    url: str
+    typ_materialu: str  # e.g. Artykuł, Wideo, Dokumentacja
+
+class SkillUpskill(BaseModel):
+    """Upskilling plan for a single skill."""
+    nazwa_umiejetnosci: str
+    materialy: list[ResourceItem]
+
+class UpskillPlan(BaseModel):
+    """Full upskilling plan for a set of missing skills."""
+    plan_nauki: list[SkillUpskill]

@@ -17,6 +17,16 @@ spacy>=3.7,<4.0
 # OpenAI SDK (Structured Outputs via client.beta.chat.completions.parse)
 openai==2.38.0
 
+# HTTP client — used by JobReader to call Jina Reader API
+requests==2.34.2
+
+# Streamlit — web UI
+streamlit==1.57.0
+
+# SQLAlchemy ORM (persistence layer)
+sqlalchemy==2.0.50
+
 # Testing framework
 pytest==8.2.0
 pytest-cov==5.0.0
+
