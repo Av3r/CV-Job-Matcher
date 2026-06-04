@@ -15,9 +15,7 @@ from src.models import UpskillPlan
 
 logger = logging.getLogger(__name__)
 
-_UPSKILL_SYSTEM_PROMPT = """\
-Jesteś ekspertem IT i mentorem. Dla każdej podanej brakującej umiejętności wygeneruj po 2 konkretne, darmowe i wysokiej jakości materiały do nauki (rzeczywiste linki do YouTube, oficjalnej dokumentacji, lub platform typu freeCodeCamp). Zwróć dane zgodnie ze strukturą JSON.
-"""
+from src.utils import load_prompt
 
 class UpskillAssistant:
     """
@@ -33,6 +31,8 @@ class UpskillAssistant:
             )
         self._model = model
         self._client = OpenAI(api_key=api_key)
+        self._upskill_prompt = load_prompt("upskill")
+        self.last_token_count = 0
         logger.info("UpskillAssistant initialized with model=%s", model)
 
     def generate_plan(self, missing_skills: List[str]) -> UpskillPlan:
@@ -52,7 +52,7 @@ class UpskillAssistant:
             response = self._client.beta.chat.completions.parse(
                 model=self._model,
                 messages=[
-                    {"role": "system", "content": _UPSKILL_SYSTEM_PROMPT},
+                    {"role": "system", "content": self._upskill_prompt},
                     {"role": "user", "content": user_content},
                 ],
                 response_format=UpskillPlan,
@@ -61,6 +61,7 @@ class UpskillAssistant:
             logger.error(f"OpenAI API call failed: {exc}")
             raise RuntimeError(f"OpenAI API call failed: {exc}") from exc
 
+        self.last_token_count = getattr(getattr(response, "usage", None), "total_tokens", 0)
         parsed = response.choices[0].message.parsed
         if parsed is None:
             raise RuntimeError(

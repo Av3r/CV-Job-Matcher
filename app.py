@@ -12,7 +12,9 @@ from src.anonymizer import TextAnonymizer
 from src.extractor import DataExtractor
 from src.job_reader import JobReader
 from src.matcher import SkillMatcher
-from src.upskiller import UpskillAssistant  # NOWY IMPORT
+from src.upskiller import UpskillAssistant 
+from src.cover_letter import CoverLetterGenerator  
+from src.ats_optimizer import ATSOptimizer
 
 # Importy bazy danych
 from src.database import init_db, save_match_record, get_all_records
@@ -28,7 +30,9 @@ def load_components():
         "extractor": DataExtractor(),
         "job_reader": JobReader(),
         "matcher": SkillMatcher(),
-        "upskiller": UpskillAssistant()  # INICJALIZACJA MODUŁU
+        "upskiller": UpskillAssistant(),
+        "cover_letter": CoverLetterGenerator(),
+        "ats_optimizer": ATSOptimizer()
     }
 
 components = load_components()
@@ -44,6 +48,12 @@ if "safe_cv_text" not in st.session_state:
     st.session_state.safe_cv_text = None
 if "upskill_plan" not in st.session_state:
     st.session_state.upskill_plan = None
+if "total_tokens" not in st.session_state:
+    st.session_state.total_tokens = 0
+if "cover_letter_text" not in st.session_state:
+    st.session_state.cover_letter_text = None
+if "ats_report" not in st.session_state:
+    st.session_state.ats_report = None
 
 st.title("🎯 SkillAlign AI")
 st.markdown("Inteligentny Asystent Rekrutacji i Analizy Kompetencji")
@@ -57,6 +67,10 @@ with st.sidebar:
     st.divider()
     st.header("📄 Wgraj CV Kandydata")
     uploaded_file = st.file_uploader("Wybierz plik PDF", type="pdf")
+
+    st.divider()
+    st.metric("🪙 Zużycie Tokenów (Sesja)", f"{st.session_state.total_tokens:,}".replace(',', ' '))
+    st.caption("Optymalizacja kosztów AI (FinOps)")
 
 tab1, tab2 = st.tabs(["🚀 Nowa Analiza", "📚 Historia Aplikacji"])
 
@@ -80,6 +94,8 @@ with tab1:
 
         # Resetujemy plan nauki z poprzednich analiz
         st.session_state.upskill_plan = None
+        st.session_state.cover_letter_text = None
+        st.session_state.ats_report = None  
 
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
@@ -93,15 +109,18 @@ with tab1:
 
             status_text.info("🧠 AI analizuje kompetencje kandydata...")
             st.session_state.candidate_data = components["extractor"].extract_cv(st.session_state.safe_cv_text)
+            st.session_state.total_tokens += components["extractor"].last_token_count
             progress_bar.progress(50)
 
             status_text.info("🌐 Pobieranie i analiza wymagań z oferty...")
             raw_job_text = components["job_reader"].fetch_from_url(job_url)
             st.session_state.job_data = components["extractor"].extract_job_offer(raw_job_text)
+            st.session_state.total_tokens += components["extractor"].last_token_count
             progress_bar.progress(75)
 
             status_text.info("🔥 Generowanie Raportu Dopasowania...")
             st.session_state.report = components["matcher"].compare(st.session_state.candidate_data, st.session_state.job_data)
+            st.session_state.total_tokens += components["matcher"].last_token_count
             
             status_text.info("💾 Zapisywanie wyników w bazie...")
             save_match_record(
@@ -146,6 +165,7 @@ with tab1:
                     with st.spinner("Szukam odpowiednich kursów i dokumentacji..."):
                         try:
                             st.session_state.upskill_plan = components["upskiller"].generate_plan(report.brakujace_wymagania)
+                            st.session_state.total_tokens += components["upskiller"].last_token_count
                         except Exception as e:
                             st.error(f"Błąd generatora: {e}")
 
@@ -156,10 +176,78 @@ with tab1:
                 with st.expander(f"🛠 Umiejętność: {skill.nazwa_umiejetnosci}"):
                     for mat in skill.materialy:
                         st.markdown(f"- **[{mat.typ_materialu}]** [{mat.tytul}]({mat.url})")
+                        
 
         st.info("💡 Rekomendacje dla Kandydata")
         for rec in report.rekomendacje_zmian_w_cv:
             st.write(f"> {rec}")
+
+
+
+        # --- TRYB INSPEKTORA (Ochrona Danych) ---
+        st.markdown("---")
+        with st.expander("🕵️‍♂️ Tryb Inspektora: Podgląd anonimizacji PII (Security Check)"):
+            st.warning("Tekst poniżej to surowe dane wysyłane do API OpenAI. Wszelkie dane wrażliwe (PII) zostały lokalnie usunięte przez Microsoft Presidio.")
+            # Wyświetlamy bezpieczny tekst zapisany wcześniej w pamięci sesji
+            st.text(st.session_state.safe_cv_text)
+
+
+        # --- FUNKCJE PREMIUM (Klinika ATS & List Motywacyjny) ---
+        st.markdown("---")
+        st.subheader("🌟 Narzędzia Premium")
+        
+        col_ats, col_letter = st.columns(2)
+        
+        # PRZYCISK: KLINIKA ATS
+        with col_ats:
+            if st.button("🛠️ Klinika ATS (Zoptymalizuj CV)", use_container_width=True):
+                with st.spinner("Szukam miejsc do optymalizacji pod ATS..."):
+                    try:
+                        st.session_state.ats_report = components["ats_optimizer"].optimize(
+                            safe_cv_text=st.session_state.safe_cv_text,
+                            missing_skills=report.brakujace_wymagania
+                        )
+                        st.session_state.total_tokens += components["ats_optimizer"].last_token_count
+                    except Exception as e:
+                        st.error(f"Błąd optymalizatora: {e}")
+
+        # PRZYCISK: LIST MOTYWACYJNY
+        with col_letter:
+            if st.button("✍️ Wygeneruj List Motywacyjny", use_container_width=True):
+                with st.spinner("Piszę profesjonalny list..."):
+                    try:
+                        st.session_state.cover_letter_text = components["cover_letter"].generate(
+                            candidate_data_json=st.session_state.candidate_data.model_dump_json(),
+                            job_data_json=st.session_state.job_data.model_dump_json()
+                        )
+                        st.session_state.total_tokens += components["cover_letter"].last_token_count
+                    except Exception as e:
+                        st.error(f"Błąd generatora: {e}")
+
+        # WIDOK KLINIKI ATS
+        if st.session_state.ats_report:
+            st.info("🤖 Propozycje zmian w CV pod kątem wyszukiwarek ATS:")
+            for idx, korekta in enumerate(st.session_state.ats_report.korekty):
+                with st.expander(f"Poprawka #{idx+1}: {korekta.uzasadnienie}"):
+                    st.markdown("**❌ Było w CV:**")
+                    st.warning(korekta.oryginalny_fragment)
+                    st.markdown("**✅ Propozycja (ATS Friendly):**")
+                    st.success(korekta.zoptymalizowany_fragment)
+
+
+        # WIDOK LISTU MOTYWACYJNEGO
+        if st.session_state.cover_letter_text:
+            st.info("📄 Twój wygenerowany List Motywacyjny:")
+            with st.container(border=True):
+                st.write(st.session_state.cover_letter_text)
+            
+            # Przycisk do skopiowania/pobrania (Opcjonalnie Streamlit pozwala na pobieranie tekstu)
+            st.download_button(
+                label="📥 Pobierz jako plik .txt",
+                data=st.session_state.cover_letter_text,
+                file_name="List_Motywacyjny.txt",
+                mime="text/plain"
+            )
 
 # ==========================================
 # ZAKŁADKA 2: HISTORIA

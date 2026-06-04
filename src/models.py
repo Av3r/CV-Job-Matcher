@@ -16,38 +16,38 @@ from pydantic import BaseModel
 class CandidateData(BaseModel):
     """Structured representation of a candidate's CV."""
 
-    poziom_stanowiska: str
+    seniority_level: str
     """Seniority level inferred from the CV, e.g. 'Junior', 'Mid', 'Senior'."""
 
-    lata_doswiadczenia: float
+    years_of_experience: float
     """Total years of professional experience."""
 
-    umiejetnosci_twarde: list[str]
+    hard_skills: list[str]
     """Hard / technical skills listed or inferred from the CV."""
 
-    umiejetnosci_miekkie: list[str]
+    soft_skills: list[str]
     """Soft skills listed or inferred from the CV."""
 
-    znane_jezyki: list[str]
+    foreign_languages: list[str]
     """Foreign languages with proficiency level if mentioned, e.g. 'English B2'."""
 
 
 class JobOfferData(BaseModel):
     """Structured representation of a job offer's requirements."""
 
-    poziom_stanowiska: str
+    seniority_level: str
     """Required seniority level, e.g. 'Junior', 'Mid', 'Senior'."""
 
-    lata_doswiadczenia: float
+    years_of_experience: float
     """Minimum years of experience required by the offer."""
 
-    umiejetnosci_twarde: list[str]
+    hard_skills: list[str]
     """Required hard / technical skills."""
 
-    umiejetnosci_miekkie: list[str]
+    soft_skills: list[str]
     """Required soft skills."""
 
-    znane_jezyki: list[str]
+    foreign_languages: list[str]
     """Required foreign languages with expected proficiency if stated."""
 
 
@@ -82,3 +82,15 @@ class SkillUpskill(BaseModel):
 class UpskillPlan(BaseModel):
     """Full upskilling plan for a set of missing skills."""
     plan_nauki: list[SkillUpskill]
+
+
+# --- ATS Optimization models ---
+class ATSCorrection(BaseModel):
+    """Single ATS optimization suggestion for a CV fragment."""
+    oryginalny_fragment: str
+    zoptymalizowany_fragment: str
+    uzasadnienie: str
+
+class ATSReport(BaseModel):
+    """Full ATS optimization report for a CV."""
+    korekty: list[ATSCorrection]

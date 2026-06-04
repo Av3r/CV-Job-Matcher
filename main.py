@@ -52,7 +52,7 @@ def test_pelnego_potoku(sciezka_pdf: str):
         dane_kandydata = extractor.extract_cv(zanonimizowany_tekst)
         
         print("\n=== SUKCES! WYNIK EKSTRAKCJI Z LLM (JSON) ===")
-        print(f"Poziom stanowiska: {dane_kandydata.poziom_stanowiska}")
+        print(f"Poziom stanowiska: {dane_kandydata.seniority_level}")
         print(f"Lata doświadczenia: {dane_kandydata.lata_doswiadczenia}")
         print(f"Umiejętności twarde: {dane_kandydata.umiejetnosci_twarde}")
         print(f"Umiejętności miękkie: {dane_kandydata.umiejetnosci_miekkie}")

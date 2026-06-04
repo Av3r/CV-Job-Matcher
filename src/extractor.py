@@ -16,57 +16,14 @@ Design notes
 
 from __future__ import annotations
 
+
 import logging
 import os
-
 from openai import OpenAI
-
 from src.models import CandidateData, JobOfferData
+from src.utils import load_prompt
 
 logger = logging.getLogger(__name__)
-
-_CV_SYSTEM_PROMPT = """\
-Jesteś surowym i precyzyjnym rekruterem technicznym z wieloletnim doświadczeniem.
-Twoim zadaniem jest wyciągnięcie ustrukturyzowanych danych z dostarczonego tekstu CV.
-
-KRYTYCZNA INSTRUKCJA: Musisz przeanalizować CAŁY tekst, w tym opisy poprzednich stanowisk
-i projektów, aby wyciągnąć ukryte umiejętności twarde i miękkie.
-Nie ograniczaj się tylko do sekcji 'Umiejętności'.
-
-Zasady:
-- Wyciągaj WYŁĄCZNIE informacje, które jawnie wynikają z tekstu. Nie domyślaj się.
-- Jeśli dana informacja nie jest dostępna, użyj wartości domyślnej:
-  - str → pusty string ""
-  - float → 0.0
-  - list[str] → pusta lista []
-- Dla pola `poziom_stanowiska` użyj jednej z wartości: "Junior", "Mid", "Senior", "Lead", "Principal".
-  Określ go na podstawie całości CV (tytuły, lata doświadczenia, zakres odpowiedzialności).
-- Dla pola `lata_doswiadczenia` podaj łączną liczbę lat doświadczenia zawodowego jako liczbę
-  zmiennoprzecinkową (np. 2.5 dla dwóch i pół roku).
-- Dla pola `znane_jezyki` uwzględniaj WSZYSTKIE języki wymienione w tekście.
-  W polu 'znane_jezyki' MUSISZ bezwzględnie umieścić język ojczysty kandydata (np. Polski),
-  jeśli tylko pojawia się w tekście. Nigdy go nie pomijaj.
-  Jeśli poziom biegłości jest podany (np. B2, C1, native), dołącz go do nazwy języka,
-  np. "Angielski C1", "Polski (native)" jeśli tak wskazuje tekst.
-"""
-
-_JOB_SYSTEM_PROMPT = """\
-Jesteś surowym i precyzyjnym rekruterem technicznym z wieloletnim doświadczeniem.
-Twoim zadaniem jest wyciągnięcie ustrukturyzowanych wymagań z dostarczonego tekstu oferty pracy.
-
-Zasady:
-- Wyciągaj WYŁĄCZNIE wymagania, które jawnie wynikają z tekstu. Nie domyślaj się.
-- Jeśli dana informacja nie jest dostępna, użyj wartości domyślnej:
-  - str → pusty string ""
-  - int → 0
-  - list[str] → pusta lista []
-- Dla pola `poziom_stanowiska` użyj jednej z wartości: "Junior", "Mid", "Senior", "Lead", "Principal".
-  Wyznacz go na podstawie tytułu stanowiska i wymagań.
-- Dla pola `lata_doswiadczenia` podaj minimalną liczbę wymaganych lat doświadczenia jako liczbę
-  zmiennoprzecinkową (np. 3.0).
-- Dla pola `znane_jezyki` uwzględniaj tylko języki wymienione jako wymaganie lub atut.
-  Dołącz poziom biegłości jeśli jest podany, np. "Angielski B2".
-"""
 
 
 class DataExtractor:
@@ -95,11 +52,18 @@ class DataExtractor:
             )
         self._model = model
         self._client = OpenAI(api_key=api_key)
+        self._cv_prompt = load_prompt("extractor_cv")
+        self._job_prompt = load_prompt("extractor_job")
+        self.last_token_count = 0
         logger.info("DataExtractor initialized with model=%s", model)
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def _set_token_count(self, response) -> None:
+        """Store total token usage from an OpenAI response."""
+        self.last_token_count = getattr(getattr(response, "usage", None), "total_tokens", 0)
 
     def extract_cv(self, text: str) -> CandidateData:
         """
@@ -117,7 +81,7 @@ class DataExtractor:
         """
         logger.debug("Extracting CandidateData from CV text (length=%d).", len(text))
         return self._parse(
-            system_prompt=_CV_SYSTEM_PROMPT,
+            system_prompt=self._cv_prompt,
             user_content=text,
             response_model=CandidateData,
         )
@@ -138,7 +102,7 @@ class DataExtractor:
         """
         logger.debug("Extracting JobOfferData from job offer text (length=%d).", len(text))
         return self._parse(
-            system_prompt=_JOB_SYSTEM_PROMPT,
+            system_prompt=self._job_prompt,
             user_content=text,
             response_model=JobOfferData,
         )
@@ -183,6 +147,7 @@ class DataExtractor:
         except Exception as exc:
             raise RuntimeError(f"OpenAI API call failed: {exc}") from exc
 
+        self.last_token_count = getattr(getattr(response, "usage", None), "total_tokens", 0)
         parsed = response.choices[0].message.parsed
         if parsed is None:
             raise RuntimeError(
