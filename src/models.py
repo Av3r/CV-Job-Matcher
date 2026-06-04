@@ -94,3 +94,5 @@ class ATSCorrection(BaseModel):
 class ATSReport(BaseModel):
     """Full ATS optimization report for a CV."""
     korekty: list[ATSCorrection]
+
+

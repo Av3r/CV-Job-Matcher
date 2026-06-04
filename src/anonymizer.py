@@ -254,7 +254,6 @@ class TextAnonymizer:
 
         # 3. Analiza Presidio (dla e-maili i standardowych imion)
         results = self._analyze(text)
-
         if not results:
             logger.debug("No PII entities found — returning original text.")
             return text
@@ -351,3 +350,5 @@ class TextAnonymizer:
             )
         except Exception as exc:
             raise RuntimeError(f"Presidio analysis failed: {exc}") from exc
+
+
